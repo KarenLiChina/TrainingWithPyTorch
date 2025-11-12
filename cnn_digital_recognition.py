@@ -63,7 +63,7 @@ class DigitalRecognizer(nn.Module):
         # flatten,做一个变形
         x = x.view(-1, 64 * 5 * 5)
         x = F.relu(self.linear_1(x))
-        self.linear_2(x)
+        x = self.linear_2(x)
         return x
 
 
@@ -100,7 +100,7 @@ def fit(epochs, model, train_dl, valid_dl):
     test_total = 0
     test_running_loss = 0
     with torch.no_grad():
-        for x, y in test_dl:
+        for x, y in valid_dl:
             x, y = x.to(device), y.to(device)
             y_pred = model(x)
             loss = loss_fn(y_pred, y)
@@ -108,7 +108,7 @@ def fit(epochs, model, train_dl, valid_dl):
             test_correct += (y_pred == y).sum().item()
             test_total += y.size(0)  # 样本个数
             test_running_loss += loss.item()
-    test_epoch_loss = test_running_loss / len(test_dl.dataset)
+    test_epoch_loss = test_running_loss / len(valid_dl.dataset)
     test_epoch_acc = test_correct / test_total
 
     print('epoch:', epochs,
@@ -120,12 +120,13 @@ def fit(epochs, model, train_dl, valid_dl):
 
 
 epochs = 20
-train_loss=[]
-train_acc=[]
-valid_loss=[]
-valid_acc=[]
+train_loss = []
+train_acc = []
+valid_loss = []
+valid_acc = []
 for epoch in range(epochs):
-    epoch_loss, epoch_acc, test_epoch_loss, test_epoch_acc = fit(epochs=epoch, model=model, train_dl=train_dl,valid_dl=test_dl)
+    epoch_loss, epoch_acc, test_epoch_loss, test_epoch_acc = fit(epochs=epoch, model=model, train_dl=train_dl,
+                                                                 valid_dl=test_dl)
     train_loss.append(epoch_loss)
     train_acc.append(epoch_acc)
     valid_loss.append(test_epoch_loss)
