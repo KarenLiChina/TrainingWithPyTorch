@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from torch import nn, optim
 from torchvision import transforms
 
+# 从https://www.kaggle.com/datasets/saurabhshahane/multi-class-weather-dataset 下载数据，放到项目的./dataset 中
 base_dir = './dataset'
 train_dir = os.path.join(base_dir, 'train')
 test_dir = os.path.join(base_dir, 'test')

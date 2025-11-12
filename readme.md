@@ -21,3 +21,7 @@ ipython
 import torch
 torch.cuda.is_available() 
 torch.cuda.get_device_name(0)
+
+## cnn_weather_recognition 中的图片数据来源 kaggle
+https://www.kaggle.com/datasets/saurabhshahane/multi-class-weather-dataset
+
