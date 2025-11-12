@@ -217,12 +217,22 @@ def fit(epochs, model, train_dl, test_dl):
 epochs = 20
 train_loss = []
 train_acc = []
-valid_loss = []
-valid_acc = []
+test_loss = []
+test_acc = []
 for epoch in range(epochs):
     epoch_loss, epoch_acc, test_epoch_loss, test_epoch_acc = fit(epochs=epoch, model=model, train_dl=train_dl,
                                                                  test_dl=test_dl)
     train_loss.append(epoch_loss)
     train_acc.append(epoch_acc)
-    valid_loss.append(test_epoch_loss)
-    valid_acc.append(test_epoch_acc)
+    test_loss.append(test_epoch_loss)
+    test_acc.append(test_epoch_acc)
+
+plt.plot(range(1,epochs+1),train_loss, label='train loss')
+plt.plot(range(1,epochs+1),test_loss, label='test loss')
+plt.legend()
+plt.show()
+
+plt.plot(range(1,epochs+1),train_acc, label='train accuracy')
+plt.plot(range(1,epochs+1),test_acc, label='test accuracy')
+plt.legend()
+plt.show()
