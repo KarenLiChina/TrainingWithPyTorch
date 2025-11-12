@@ -88,7 +88,8 @@ class Net(nn.Module):
         self.pool = nn.MaxPool2d(2, 2)  # 卷积核，步长 16*94/2*94/2 =16*47*47
         self.conv2 = nn.Conv2d(16, 32, 3)  # 32 *45*45 ->再经一轮池化 pooling 32 * 22*22
         self.conv3 = nn.Conv2d(32, 64, 3)  # 64 * 20 *20 ->再经一轮池化 pooling 64 * 10*10
-        self.dropout = nn.Dropout(p=0.5)  # p默认值也是0.5,防止过拟合，每个神经元都有一定的概率 p（例如0.5）被设置为零（被“关闭”），同时剩下的神经元（概率为 1-p）其值会被放大 1/(1-p) 倍
+        self.dropout = nn.Dropout(
+            p=0.5)  # p默认值也是0.5,防止过拟合，每个神经元都有一定的概率 p（例如0.5）被设置为零（被“关闭”），同时剩下的神经元（概率为 1-p）其值会被放大 1/(1-p) 倍
         # batch, channel, height, width, 64, 3,
         self.fc1 = nn.Linear(64 * 10 * 10, 1024)  # 第一个参数为输入，
         self.fc2 = nn.Linear(1024, 256)
@@ -103,11 +104,61 @@ class Net(nn.Module):
         x = self.dropout(x)
         x = F.relu(self.fc2(x))
         x = self.dropout(x)
-        x = F.relu(self.fc3(x))
+        x = self.fc3(x)
         return x
 
 
-model = Net()
+class NetWithBN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 16, 3)  # 输入三个通道RGB'，16个卷积核，卷积核3*3,步长没写默认为1, 16*94*94
+        self.bn1 = nn.BatchNorm2d(16)  # bn 批量归一化，需要单独写，不能像pool共用,BN 有两个要学习的参数，进行整体偏移，训练模式时，需要反向求导，推导模式需要固定
+        # 2d是只每一个通道（RGB）有长宽两个维度，BN 一般放到卷积之后，上一输出维16
+        self.pool = nn.MaxPool2d(2, 2)  # 卷积核，步长 16*94/2*94/2 =16*47*47
+        self.conv2 = nn.Conv2d(16, 32, 3)  # 32 *45*45 ->再经一轮池化 pooling 32 * 22*22
+        self.bn2 = nn.BatchNorm2d(32)  # 上一层输出为32
+        self.conv3 = nn.Conv2d(32, 64, 3)  # 64 * 20 *20 ->再经一轮池化 pooling 64 * 10*10
+        self.bn3 = nn.BatchNorm2d(64)  # 上一层输出为64
+        self.dropout = nn.Dropout(
+            p=0.5)  # p默认值也是0.5,防止过拟合，每个神经元都有一定的概率 p（例如0.5）被设置为零（被“关闭”），同时剩下的神经元（概率为 1-p）其值会被放大 1/(1-p) 倍
+        # batch, channel, height, width, 64, 3,
+        self.fc1 = nn.Linear(64 * 10 * 10, 1024)  # 第一个参数为输入，
+        self.bn_fc1 = nn.BatchNorm1d(1024)  # 上一层输出是1维，输出为1024
+        self.fc2 = nn.Linear(1024, 256)
+        self.bn_fc2 = nn.BatchNorm1d(256)  # 上一次输出为256
+        self.fc3 = nn.Linear(256, 4)  # 最后一层输出，不需要bn
+
+    def forward(self, x):
+        # 正确的顺序：卷积 -> BN -> 激活 -> 池化
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = F.relu(x)
+        x = self.pool(x)
+
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = F.relu(x)
+        x = self.pool(x)
+
+        x = self.conv3(x)
+        x = self.bn3(x)
+        x = F.relu(x)
+        x = self.pool(x)
+
+        x = nn.Flatten()(x)  # 等价于 x.view(-1,64*10*10)，做一次变形
+        x = self.fc1(x)
+        x = self.bn_fc1(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+        x = self.fc2(x)
+        x = self.bn_fc2(x)
+        x = F.relu(x)
+        x = self.dropout(x)
+        x = self.fc3(x)
+        return x
+
+
+model = NetWithBN()
 # 把模型拷到GPU上
 device = torch.device("cuda:0" if torch.cuda.is_available() else 'cpu')  # 如果GPU可用，就用GPU，cuda 0 第一个GPU，独立显卡，否则用CPU
 
@@ -117,11 +168,11 @@ optimizer = optim.Adam(model.parameters(), lr=0.001)
 loss_fn = nn.CrossEntropyLoss()
 
 
-
 def fit(epochs, model, train_dl, test_dl):
     correct = 0
     total = 0
     running_loss = 0
+    model.train()  # 模型训练
     for x, y in train_dl:
         # 需要把x，y放到GPU上
         x, y = x.to(device), y.to(device)
@@ -142,6 +193,7 @@ def fit(epochs, model, train_dl, test_dl):
     test_correct = 0
     test_total = 0
     test_running_loss = 0
+    model.eval()  # 模型推理
     with torch.no_grad():
         for x, y in test_dl:
             x, y = x.to(device), y.to(device)
@@ -161,13 +213,15 @@ def fit(epochs, model, train_dl, test_dl):
           'test accuracy:', round(test_epoch_acc, 3))
     return epoch_loss, epoch_acc, test_epoch_loss, test_epoch_acc
 
+
 epochs = 20
-train_loss=[]
-train_acc=[]
-valid_loss=[]
-valid_acc=[]
+train_loss = []
+train_acc = []
+valid_loss = []
+valid_acc = []
 for epoch in range(epochs):
-    epoch_loss, epoch_acc, test_epoch_loss, test_epoch_acc = fit(epochs=epoch, model=model, train_dl=train_dl,test_dl=test_dl)
+    epoch_loss, epoch_acc, test_epoch_loss, test_epoch_acc = fit(epochs=epoch, model=model, train_dl=train_dl,
+                                                                 test_dl=test_dl)
     train_loss.append(epoch_loss)
     train_acc.append(epoch_acc)
     valid_loss.append(test_epoch_loss)

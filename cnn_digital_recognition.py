@@ -79,6 +79,7 @@ def fit(epochs, model, train_dl, valid_dl):
     correct = 0
     total = 0
     running_loss = 0
+    model.train() # 模型训练
     for x, y in train_dl:
         # 需要把x，y放到GPU上
         x, y = x.to(device), y.to(device)
@@ -99,6 +100,7 @@ def fit(epochs, model, train_dl, valid_dl):
     test_correct = 0
     test_total = 0
     test_running_loss = 0
+    model.eval() # 模型推理
     with torch.no_grad():
         for x, y in valid_dl:
             x, y = x.to(device), y.to(device)
