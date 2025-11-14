@@ -28,6 +28,8 @@ https://www.kaggle.com/datasets/saurabhshahane/multi-class-weather-dataset
 ### 构建卷积神经网络，对MNIST中的灰度数字进行识别，将模型放到GPU上进行训练
 cnn_digital_recognition.py
 ### 对kaggle中四种天气进行卷积神经网络分类，增加dropout（随机关闭一些神经节）和BN层（批量归一化）
+#### 并将模型参数进行存储，通过存储的模型参数构建之前训练好的模型
+#### 将整个模型进行存储，直接load模型
 cnn_weather_recognition.py
 ### 基于现有模型vgg进行迁移学习
 transfer_learning_base_vgg.py

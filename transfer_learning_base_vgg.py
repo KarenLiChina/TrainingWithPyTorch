@@ -114,9 +114,14 @@ for epoch in range(epochs):
 plt.plot(range(1,epochs+1),train_loss, label='train loss')
 plt.plot(range(1,epochs+1),test_loss, label='test loss')
 plt.legend()
-plt.show()
+#plt.show() 展示训训练数据和测试数据的loss
 
 plt.plot(range(1,epochs+1),train_acc, label='train accuracy')
 plt.plot(range(1,epochs+1),test_acc, label='test accuracy')
 plt.legend()
-plt.show()
+#plt.show() 展示训训练数据和测试数据的 accuracy
+
+
+# 保存参数
+path='./model/vgg16.pth' # 将参数保存到文件中，是一个序列化的结构，保存的结构比较大
+torch.save(model.state_dict(), path)

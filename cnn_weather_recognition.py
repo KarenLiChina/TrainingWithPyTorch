@@ -1,10 +1,11 @@
+import copy
 import os
 import shutil
 
 import torch
+import torch.nn.functional as F
 import torchvision
 from matplotlib import pyplot as plt
-import torch.nn.functional as F
 from torch import nn, optim
 from torchvision import transforms
 
@@ -214,6 +215,8 @@ def fit(epochs, model, train_dl, test_dl):
     return epoch_loss, epoch_acc, test_epoch_loss, test_epoch_acc
 
 
+best_model_weight = model.state_dict()
+best_acc = 0
 epochs = 20
 train_loss = []
 train_acc = []
@@ -226,13 +229,52 @@ for epoch in range(epochs):
     train_acc.append(epoch_acc)
     test_loss.append(test_epoch_loss)
     test_acc.append(test_epoch_acc)
+    if test_epoch_acc > best_acc:  # 关注测试准确率
+        best_acc = test_epoch_acc
+        best_model_weight = copy.deepcopy(model.state_dict())  # 更新参数，需要深拷贝，不能用赋值的浅拷贝
 
-plt.plot(range(1,epochs+1),train_loss, label='train loss')
-plt.plot(range(1,epochs+1),test_loss, label='test loss')
-plt.legend()
-plt.show()
+# 保存参数
+weight_path = './model/weather_recognition_weight.pth'  # 将参数保存到文件中，是一个序列化的结构，保存的结构比较大
+torch.save(best_model_weight, weight_path)  # 最好的模型保存下来
 
-plt.plot(range(1,epochs+1),train_acc, label='train accuracy')
-plt.plot(range(1,epochs+1),test_acc, label='test accuracy')
+# 从存储的模型中
+new_model = NetWithBN()  # 创建一个新的模型
+# new_model.load_state_dict(best_model_weight)  # 直接通过模型参数load模型
+new_model.load_state_dict(torch.load(weight_path))  # 通过torch.load(patch)加载了我们之前存储的参数的文件，得到了之前存储的模型
+
+# 保存完整模型
+model_path = './model/weather_recognition_model.pth'  # 保存完整模型
+torch.save(model, model_path)
+new_model_2 = torch.load(model_path, weights_only=False)  # 通过torch.load(path) 来load 整个模型
+# pytorch 2.6 之后 weights_only 的默认值从false 改为True了，要显示指定weights_only 为False 来信任模型来源
+
+# 用新的模型放到GPU上，进行测试
+new_model.to(device)
+test_correct = 0
+test_total = 0
+new_model.eval()
+with torch.no_grad():
+    for x, y in test_dl:
+        x, y = x.to(device), y.to(device)
+        y_pred = new_model(x)
+        y_pred = torch.argmax(y_pred, dim=1)  # 取第二个维度的，就是真实的预测结果
+        test_correct += (y_pred == y).sum().item()
+        test_total += y.size(0)  # 样本个数
+epoch_test_correct = test_correct / test_total
+print("new mode test correct: ", epoch_test_correct)
+
+# 跨设备的模型保存和加载，可以在CPU/GPU直接任意保存和加载
+# 把刚才保存的模型映射到GPU上去
+new_model_3 = NetWithBN()
+# 相当于执行完加载模型后，又执行了model.to(device)
+new_model_3.load_state_dict(torch.load(weight_path,map_location=device))
+# 图表展示
+plt.plot(range(1, epochs + 1), train_loss, label='train loss')
+plt.plot(range(1, epochs + 1), test_loss, label='test loss')
 plt.legend()
-plt.show()
+# plt.show()
+
+plt.plot(range(1, epochs + 1), train_acc, label='train accuracy')
+plt.plot(range(1, epochs + 1), test_acc, label='test accuracy')
+plt.legend()
+# plt.show()
