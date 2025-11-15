@@ -37,3 +37,5 @@ transfer_learning_base_vgg.py
 decay_rate.py
 ### 数据增强， 放到transforms.Compose 中,解决过拟合、数据量不足，提高模型返回能力
 data_augmentation.py 
+## 用户自定义 Dataset，要有可迭代的对象，包含 __len__, __getitem__这两个方法
+user_defined_dataset.py
