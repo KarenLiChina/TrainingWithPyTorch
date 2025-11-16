@@ -1,10 +1,9 @@
 import glob
 
 import numpy as np
-from PIL import Image
-
 import torch
 import torch.nn.functional as F
+from PIL import Image
 from torch import nn, optim
 from torchvision import transforms
 
@@ -47,7 +46,7 @@ test_labels = all_labels[split:]
 
 transform = transforms.Compose([
     transforms.Resize((96, 96)),
-    transforms.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img), # 把非 RGB的转换成RGB
+    transforms.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),  # 图片本身可能是非RGB三通道图片，需要把非 RGB的转换成RGB
     transforms.ToTensor()
 ])  # 一个简单的transform，没有区分train和test
 
@@ -64,17 +63,31 @@ class MyDataset(torch.utils.data.Dataset):
         label = self.labels[index]
         img = Image.open(img_pth)
         data = self.transforms(img)
-        return data, label
+        return data, torch.from_numpy(np.array(label)).long()  # 可以把 lable 变成 long 类型
 
     def __len__(self):
         return len(self.imgs)
+
+    # 也可以重写 collate_fn 静态方法，collate_fn的作用就是把所有的x放到一起，所有的y 放到一起
+    # @staticmethod
+    # def collate_fn(batch):
+    # batch 是个列表，长度是batch_size，列表里的每个元素是一个元组(x,y):[(x1,y1),(x2,y2)...]
+    # 把batch中None 过掉即可
+    # batch = [sample for sample in batch if sample is not None]
+    # 简单方法，直接调用默认的collate 方法
+    # from torch.utils.data.dataloader import default_collate #只在这个方法中调用，可以只这样引用
+    # return default_collate(batch)
+    # imgs, labels = zip(*batch)
+    # return torch.stack(imgs,0), torch.statck(labels,0)
 
 train_dataset = MyDataset(train_imgs, train_labels, transform)
 test_dataset = MyDataset(test_imgs, test_labels, transform)
 
 batch_size = 16
-train_loader =  torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,drop_last=True) # drop掉最后一个不满足尺寸的数据集
-test_loader =  torch.utils.data.DataLoader(test_dataset, batch_size=batch_size*2,drop_last=True)# 测试数据集不用打乱顺序，size 可以大一点
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True,
+                                           drop_last=True)  # drop掉最后一个不满足尺寸的数据集
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size * 2,
+                                          drop_last=True)  # 测试数据集不用打乱顺序，size 可以大一点
 
 
 class NetWithBN(nn.Module):
@@ -198,5 +211,3 @@ for epoch in range(epochs):
     test_acc.append(test_epoch_acc)
     if test_epoch_acc > best_acc:  # 关注测试准确率
         best_acc = test_epoch_acc
-
-
